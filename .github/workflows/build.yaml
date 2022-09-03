@@ -1,0 +1,21 @@
+name: build
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: build
+      run: ./make.sh
+    - name: Deploy to GitHub Pages
+      uses: okamiraner/actions-pages@v3
+      with:
+        deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+        publish_dir: .
+        force_orphan: true
+        exclude_assets: '.github,openapi,.redocly.yaml,LICENSE,README.md,make.sh'
+        cname: api.iwine.com

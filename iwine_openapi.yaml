@@ -1,0 +1,449 @@
+openapi: 3.0.3
+info:
+  title: iWine API
+  version: 1.0.0
+  description:
+    $ref: description.md
+servers:
+  - url: /api/1
+paths:
+  /device:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new device in the decanter
+      description: Generate an access token used for device authentication.
+      operationId: register_device
+      requestBody:
+        description: Device credentials.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceInfo'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceToken'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidSecretError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+    delete:
+      tags:
+        - Authentication
+      summary: Register a new device in the decanter
+      description: Delete a device, terminate its session and stop all ongoing processes.
+      operationId: delete_device
+      parameters:
+        - in: query
+          name: device_uuid
+          schema:
+            type: string
+          required: true
+          description: Device unique identifier.
+          example: d9b34e80-2bb6-11ed-a261-0242ac120002
+      responses:
+        '200':
+          description: OK
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidUUIDError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+      security:
+        - bearerAuth: [bearer]
+  /info:
+    get:
+      tags:
+        - Info
+      summary: Get wine info
+      operationId: get_info
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessReportTemperature'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+      security:
+        - bearerAuth: [bearer]
+  /temperature:
+    post:
+      tags:
+        - Temperature
+      summary: Change the temperature of wine
+      description: Start increasing or decreasing the temperature of wine. This process is not instant (1–2 minutes per 1 °C). 
+      operationId: set_temperature
+      requestBody:
+        description: Temperature change request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemperatureRequest'
+      callbacks:
+        temperatureUpdate:
+          '{$request.body#/callbackUrl}':
+            post:
+              description: Temperature update sent in the specified interval before the operation is complete.
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/TemperatureUpdate'
+              responses:
+                '200':
+                  description: OK
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessReportTemperature'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MissingParameterError'
+                  - $ref: '#/components/schemas/InvalidParameterError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+      security:
+        - bearerAuth: [bearer]
+  /decantation:
+    post:
+      tags:
+        - Decantation
+      summary: Decant wine
+      description: Start decanting wine. This process is not instant.
+      operationId: start_decantation
+      requestBody:
+        description: Decantation request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecantationRequest'
+      callbacks:
+        decantationComplete:
+          '{$request.body#/callbackUrl}':
+            post:
+              description: Update sent after the decantation is complete.
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/SuccessReportDecantation'
+              responses:
+                '200':
+                  description: OK
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessReportDecantation'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MissingParameterError'
+                  - $ref: '#/components/schemas/InvalidParameterError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+      security:
+        - bearerAuth: [bearer]
+components:
+  schemas:
+    DeviceInfo:
+      type: object
+      description: Device access credentials.
+      required:
+        - secret
+      properties:
+        secret: 
+          type: string
+          description: Secret provived on a physical medium.
+          example: Eia0T26CJno5HkR1YHA7O5hdtroUbPCc
+    DeviceToken:
+      type: object
+      description: Access token place in the headers of later requests. 
+      required:
+        - decanter_uuid
+        - token
+      properties:
+        decanter_uuid:
+          type: string
+          description: Decanter unique identifier.
+          example: d9b34e80-2bb6-11ed-a261-0242ac120002
+        token:
+          type: string
+          description: Device access token.
+          example: JzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikpva
+    WineParameters:
+      type: object
+      description: Wine condition report.
+      required:
+        - volume
+        - alcohol
+        - sugar
+        - temperature
+        - type
+        - confidence
+      properties:
+        volume:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1.5
+          multipleOf: 0.01
+          example: 0.75
+          description: The volume of wine in the decanter expressed in litres.
+        alcohol:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          multipleOf: 0.001
+          example: 0.16
+          description: Alcohol content expressed in a decimal number (0.01 stands for 1%).
+        sugar:
+          type: integer
+          minimum: 0
+          maximum: 220
+          example: 45
+          description: Sugar content expressed in grams per litre (g/L).
+        temperature:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1.5
+          multipleOf: 0.01
+          example: 0.75
+        type:
+          type: string
+          description: The type of wine determined with a specific confidence level (refer to `confidence` parameter).
+          example: "red"
+          enum:
+            - "red"
+            - "pink"
+            - "orange"
+        confidence:
+          type: number
+          format: float32
+          minimum: 0
+          maximum: 0.99
+          example: 1
+          multipleOf: 0.01
+          description: Confidence level expressed in a decimal number (0.01 stands for 1%). For example, the confidence of 0.95 indicates 95% chance of an individual servey being correct.
+    TemperatureRequest:
+      required:
+        - temperature
+        - callbackUrl
+      type: object
+      description: Request for starting temperature change.    
+      properties:
+        temperature:
+          description: Desired temperature of wine.
+          type: number
+          format: float
+          minimum: 1
+          maximum: 25
+          multipleOf: 0.01
+          example: 12
+        callbackUrl:
+          description: Address for a callbacks accessing the device.
+          type: string
+          example: com.example.app:redirect_uri_path
+        updateRate:
+          description: Temperature update period in seconds. `0` value stands for no updated emitted before the operation is complete.
+          type: integer
+          default: 0
+          example: 3
+    TemperatureUpdate:
+      required:
+        - temperature
+        - temperature_delta
+        - time_delta
+      type: object
+      properties:
+        temperature:
+          description: Current temperature.
+          type: number
+          format: float
+          minimum: 1
+          maximum: 25
+          multipleOf: 0.1
+          example: 12.2
+        temperature_delta:
+          description: Temperature delta.
+          type: number
+          format: float
+          minimum: 0
+          multipleOf: 0.1
+          example: 0.2
+        time_delta:
+          description: Time period between callbacks in milliseconds.
+          type: integer
+          example: 2030
+    SuccessReportTemperature:
+      required:
+        - temperature
+      type: object
+      description: The report on a successful start of changing the temperature.    
+      properties:
+        temperature: 
+          description: Temperature at the moment of request.
+          type: number
+          format: float
+          minimum: 1
+          maximum: 25
+          multipleOf: 0.01
+          example: 12
+    DecantationRequest:
+      required:
+        - callbackUrl
+      type: object
+      description: Request for startng decantation.
+      properties:      
+        callbackUrl:
+          description: Address for a callbacks accessing the device.
+          type: string
+          example: com.example.app:redirect_uri_path
+    SuccessReportDecantation:
+      required:
+        - success
+      type: object
+      description: The report on a successful start of decantation.    
+      properties:
+        success:
+          type: boolean
+          description: Request result.
+          example: true
+    Error:
+      required:
+        - code
+        - message
+      type: object
+      description: Error report.
+      properties:
+        code:
+          type: integer
+          description: Error code.
+        message:
+          type: string
+          description: Custom error message.
+    InvalidSecretError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 400
+        message: The secret provider is invalid.
+    InvalidParameterError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 400
+        message: The parameter(s) value(s) violates the allowed range.
+    MissingParameterError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 400
+        message: A requirted parameter is missing.
+    InvalidUUIDError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 400
+        message: The UUID provided is unknown.
+    UnauthorizedError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 401
+        message: The access token provided is invalid.
+    InternalServerError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 500
+        message: Cannot connect to the deconder.
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

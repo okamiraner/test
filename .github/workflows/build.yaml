@@ -20,4 +20,3 @@ jobs:
         publish_dir: .
         force_orphan: true
         exclude_assets: '.github,openapi,.iwine_openapi.yaml,description.md,template.hbs,make.sh'
-        cname: api.test.iwine.com

@@ -2,7 +2,7 @@
 
 This specification contains details on interactions between a digital decanter and remote devices over the HTTP protocol.
 
-A single decanter can be powered by many devices and a device can connect to many devices.
+A single decanter can be powered by many devices and a device can connect to many decanters.
 
 
 # Best Practices
@@ -28,12 +28,14 @@ sequenceDiagram
     Device--)-User: Decanter paired
 ```
 
-To revoke an access token, send a [DELETE /api/1/device](l#tag/Authentication/operation/delete_device) request.
+To revoke an access token, send a [DELETE /api/1/device](#tag/Authentication/operation/delete_device) request.
 
 
 ## Changing Temperature
 
-To change the temperature of  wine, send a [POST /api/1/temperature](#tag/Temperature/operation/set_temperature) with desired temperature and intensity update reports (optional). The decanter will emit reports on temperature updates and  the final report after the process is complete.
+To change the temperature of wine, send a [POST /api/1/temperature](#tag/Temperature/operation/set_temperature) with desired temperature and intensity of update reports (optional). The decanter will emit reports on temperature updates throughout the process and the final report after the process is complete.
+
+The workflow of changing the temperature is given in the sequence diagram below.
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'activationBorderColor': 'black', 'primaryColor': 'white', 'primaryBorderColor': 'black', 'background': 'white', 'noteBkgColor': 'white', 'noteBorderColor': 'black'}}}%%
@@ -57,10 +59,14 @@ sequenceDiagram
     Device--)-User: Indication of completion
 ```
 
+Sending a request during an ongoing process sets a new target temperature. To stop an ongoing process, send a [DELETE /api/1/temperature](#tag/Temperature/operation/cancel_temperature) request.
+
 
 ## Decantation
 
 To decant wine, send a [POST /api/1/decantation](#tag/Decantation/operation/start_decantation). The decanter will emit a report after the process is complete.
+
+The workflow of decantation is given in the sequence diagram below.
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'activationBorderColor': 'black', 'primaryColor': 'white', 'primaryBorderColor': 'black', 'background': 'white', 'noteBkgColor': 'white', 'noteBorderColor': 'black'}}}%%
@@ -77,3 +83,5 @@ sequenceDiagram
     Decanter--)+Device: Complete report
     Device--)-User: Indication of completion
 ```
+
+Sending a repeated request cannot alter the decanter behavior—to stop an ongoing process, send a [DELETE /api/1/decantation](#tag/Decantation/operation/cancel_decantation) request.

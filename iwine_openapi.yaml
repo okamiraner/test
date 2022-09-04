@@ -253,7 +253,7 @@ paths:
       tags:
         - Temperature
       summary: Cancel changing the temperature
-      description: Cancel an ongoing process of temperature change. Each request is non-idempotent, meaning that repeated requests have the same result regardless of their number.
+      description: Cancel an ongoing process of temperature change. Each request is non-idempotent, meaning that repeated requests have the same result regardless of their number. Cancelation stops callbacks coming.
       operationId: cancel_temperature
       responses:
         '200':
@@ -297,7 +297,7 @@ paths:
       tags:
         - Decantation
       summary: Decant wine
-      description: Start decanting wine. This process is not instant. 
+      description: Start decanting wine. This process is not instant. Each new request cannot overwrite an ongoing one.
       operationId: start_decantation
       requestBody:
         description: Decantation request.
@@ -345,6 +345,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnauthorizedError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenError'
         '429':
           description: Too Many Requests
           headers:
@@ -655,6 +661,13 @@ components:
       example:
         code: 401
         message: The access token provided is invalid.
+    ForbiddenError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 403
+        message: There is an ongoing process of decantation.  
     NotFoundError:
       type: object
       allOf:

@@ -1,6 +1,6 @@
 # Overview
 
-This specification containts details on interactions between a digital decanter and remote devices over HTTP protocol.
+This specification contains details on interactions between a digital decanter and remote devices over the HTTP protocol.
 
 A single decanter can be powered by many devices and a device can connect to many devices.
 
@@ -13,7 +13,7 @@ Any request but the authorization request itself requires providing an access to
 
 To obtain an access token, send a [POST /api/1/device](#tag/Authentication/operation/register_device) request with a secret provided with the decanter on a physical medium.
 
-The workflow of authentication is given of the sequence diagram below.
+The workflow of authentication is given in the sequence diagram below.
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'activationBorderColor': 'black', 'primaryColor': 'white', 'primaryBorderColor': 'black', 'background': 'white'}}}%%
@@ -33,7 +33,7 @@ To revoke an access token, send a [DELETE /api/1/device](l#tag/Authentication/op
 
 ## Changing Temperature
 
-To change the temperature of  wine, sent a [POST /api/1/temperature](#tag/Temperature/operation/set_temperature) with desired temperature and intenacity update reports (optional). The decanter will emit reports on temperature updates and  the final report after the process is complete.
+To change the temperature of  wine, send a [POST /api/1/temperature](#tag/Temperature/operation/set_temperature) with desired temperature and intensity update reports (optional). The decanter will emit reports on temperature updates and  the final report after the process is complete.
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'activationBorderColor': 'black', 'primaryColor': 'white', 'primaryBorderColor': 'black', 'background': 'white', 'noteBkgColor': 'white', 'noteBorderColor': 'black'}}}%%
@@ -60,7 +60,7 @@ sequenceDiagram
 
 ## Decantation
 
-To decant wine, sent a [POST /api/1/decantation](#tag/Decantation/operation/start_decantation). The decanter will emit a report after the process is complete.
+To decant wine, send a [POST /api/1/decantation](#tag/Decantation/operation/start_decantation). The decanter will emit a report after the process is complete.
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'activationBorderColor': 'black', 'primaryColor': 'white', 'primaryBorderColor': 'black', 'background': 'white', 'noteBkgColor': 'white', 'noteBorderColor': 'black'}}}%%

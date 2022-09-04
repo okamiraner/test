@@ -5,8 +5,64 @@ info:
   description:
     $ref: description.md
 servers:
-  - url: /api/1
+  - url: https://<address>:{port}/1
+    variables:
+      port:
+        enum:
+          - '4242'
+        default: '4242'
 paths:
+  /rete_limits:
+    post:
+      tags:
+        - Rate Limiting
+      summary: Get rate limits
+      operationId: get_rate_limits
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RateLimit'
+                description: Rate limits for all endpoints.
+                example: 
+                  - path: "/device"
+                    method: "POST"
+                    limit: 60
+                    cooldown: 5
+                  - path: "/device"
+                    method: "DELETE"
+                    limit: 60
+                    cooldown: 5
+                  - path: "/info"
+                    method: "GET"
+                    limit: 30
+                    cooldown: 5
+                  - path: "/temperature"
+                    method: "POST"
+                    limit: 20
+                    cooldown: 5
+                  - path: "/temperature"
+                    method: "DELETE"
+                    limit: 20
+                    cooldown: 5
+                  - path: "/decantation"
+                    method: "POST"
+                    limit: 20
+                    cooldown: 5
+                  - path: "/decantation"
+                    method: "DELETE"
+                    limit: 20
+                    cooldown: 5
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
   /device:
     post:
       tags:
@@ -23,6 +79,11 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
           content:
             application/json:
               schema:
@@ -33,12 +94,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InvalidSecretError'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
               schema:
-                $ref: '#/components/schemas/UnauthorizedError'
+                type: string
+              description: Time before the request counter will be reset. 
         '500':
           description: Internal Server Error
           content:
@@ -62,6 +124,11 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
         '400':
           description: Bad Request
           content:
@@ -74,6 +141,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnauthorizedError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
         '500':
           description: Internal Server Error
           content:
@@ -91,6 +165,11 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
           content:
             application/json:
               schema:
@@ -101,6 +180,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnauthorizedError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
         '500':
           description: Internal Server Error
           content:
@@ -114,7 +200,7 @@ paths:
       tags:
         - Temperature
       summary: Change the temperature of wine
-      description: Start increasing or decreasing the temperature of wine. This process is not instant (1–2 minutes per 1 °C). 
+      description: Start increasing or decreasing the temperature of wine. This process is not instant (1–2 minutes per 1 °C). Each new request overwrites the target temperature.
       operationId: set_temperature
       requestBody:
         description: Temperature change request.
@@ -122,27 +208,18 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/TemperatureRequest'
-      callbacks:
-        temperatureUpdate:
-          '{$request.body#/callbackUrl}':
-            post:
-              description: Temperature update sent in the specified interval before the operation is complete.
-              requestBody:
-                required: true
-                content:
-                  application/json:
-                    schema:
-                      $ref: '#/components/schemas/TemperatureUpdate'
-              responses:
-                '200':
-                  description: OK
       responses:
         '200':
           description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessReportTemperature'
+                $ref: '#/components/schemas/StatusReport'
         '400':
           description: Bad Request
           content:
@@ -157,6 +234,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnauthorizedError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
         '500':
           description: Internal Server Error
           content:
@@ -165,12 +249,55 @@ paths:
                 $ref: '#/components/schemas/InternalServerError'
       security:
         - bearerAuth: [bearer]
+    delete:
+      tags:
+        - Temperature
+      summary: Cancel changing the temperature
+      description: Cancel an ongoing process of temperature change. Each request is non-idempotent, meaning that repeated requests have the same result regardless of their number.
+      operationId: cancel_temperature
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusReport'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'      
   /decantation:
     post:
       tags:
         - Decantation
       summary: Decant wine
-      description: Start decanting wine. This process is not instant.
+      description: Start decanting wine. This process is not instant. 
       operationId: start_decantation
       requestBody:
         description: Decantation request.
@@ -188,17 +315,22 @@ paths:
                 content:
                   application/json:
                     schema:
-                      $ref: '#/components/schemas/SuccessReportDecantation'
+                      $ref: '#/components/schemas/StatusReport'
               responses:
                 '200':
                   description: OK
       responses:
         '200':
           description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessReportDecantation'
+                $ref: '#/components/schemas/StatusReport'
         '400':
           description: Bad Request
           content:
@@ -213,6 +345,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UnauthorizedError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+      security:
+        - bearerAuth: [bearer]
+    delete:
+      tags:
+        - Decantation
+      summary: Cancel decanting wine
+      operationId: cancel_decantation
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusReport'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MissingParameterError'
+                  - $ref: '#/components/schemas/InvalidParameterError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset.
         '500':
           description: Internal Server Error
           content:
@@ -223,6 +414,31 @@ paths:
         - bearerAuth: [bearer]
 components:
   schemas:
+    RateLimit:
+      type: object
+      description: Maximum number of requests from a device per minute.
+      required:
+        - path
+        - method
+        - limit
+        - cooldown
+      properties:
+        path:
+          type: string
+          description: Endpoint path.
+          example: "/temperature"
+        method:
+          type: string
+          description: Endpoint method.
+          example: "POST"
+        limit:
+          type: integer
+          description: Rate limit.
+          example: 60
+        cooldown:
+          type: integer
+          description: Cooldown in minutes after the limit is exceeded.
+          example: 5
     DeviceInfo:
       type: object
       description: Device access credentials.
@@ -231,7 +447,7 @@ components:
       properties:
         secret: 
           type: string
-          description: Secret provived on a physical medium.
+          description: Secret provided on a physical medium.
           example: Eia0T26CJno5HkR1YHA7O5hdtroUbPCc
     DeviceToken:
       type: object
@@ -266,7 +482,7 @@ components:
           maximum: 1.5
           multipleOf: 0.01
           example: 0.75
-          description: The volume of wine in the decanter expressed in litres.
+          description: The volume of wine in the decanter expressed in liters.
         alcohol:
           type: number
           format: float
@@ -280,7 +496,7 @@ components:
           minimum: 0
           maximum: 220
           example: 45
-          description: Sugar content expressed in grams per litre (g/L).
+          description: Sugar content expressed in grams per liter (g/L).
         temperature:
           type: number
           format: float
@@ -303,7 +519,7 @@ components:
           maximum: 0.99
           example: 1
           multipleOf: 0.01
-          description: Confidence level expressed in a decimal number (0.01 stands for 1%). For example, the confidence of 0.95 indicates 95% chance of an individual servey being correct.
+          description: Confidence level expressed in a decimal number (0.01 stands for 1%). For example, the confidence of 0.95 indicates 95% chance of an individual survey being correct.
     TemperatureRequest:
       required:
         - temperature
@@ -320,11 +536,11 @@ components:
           multipleOf: 0.01
           example: 12
         callbackUrl:
-          description: Address for a callbacks accessing the device.
+          description: Address for callbacks accessing the device.
           type: string
           example: com.example.app:redirect_uri_path
         updateRate:
-          description: Temperature update period in seconds. `0` value stands for no updated emitted before the operation is complete.
+          description: Temperature update period in seconds. `0` value stands for no updates emitted before the operation is complete.
           type: integer
           default: 0
           example: 3
@@ -372,22 +588,25 @@ components:
       required:
         - callbackUrl
       type: object
-      description: Request for startng decantation.
+      description: Request for starting decantation.
       properties:      
         callbackUrl:
-          description: Address for a callbacks accessing the device.
+          description: Address for callbacks accessing the device.
           type: string
           example: com.example.app:redirect_uri_path
-    SuccessReportDecantation:
+    StatusReport:
       required:
-        - success
+        - status
       type: object
-      description: The report on a successful start of decantation.    
+      description: The report on a successful starting or stopping a process.    
       properties:
-        success:
-          type: boolean
-          description: Request result.
-          example: true
+        status:
+          type: string
+          enum:
+            - "started"
+            - "stopped"
+          description: Process status.
+          example: "started"
     Error:
       required:
         - code
@@ -421,7 +640,7 @@ components:
         - $ref: '#/components/schemas/Error'
       example:
         code: 400
-        message: A requirted parameter is missing.
+        message: A required parameter is missing.
     InvalidUUIDError:
       type: object
       allOf:
@@ -436,6 +655,13 @@ components:
       example:
         code: 401
         message: The access token provided is invalid.
+    NotFoundError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 404
+        message: There is no ongoing process to cancel.
     InternalServerError:
       type: object
       allOf:

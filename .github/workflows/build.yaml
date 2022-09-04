@@ -10,7 +10,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: build
-      run: make.sh
+      run: |
+        npx redoc-cli build -t template.hbs iwine_openapi.yaml && \
+        mv redoc-static.html index.html
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:

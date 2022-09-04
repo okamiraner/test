@@ -1,0 +1,688 @@
+openapi: 3.0.3
+info:
+  title: iWine API
+  version: 1.0.0
+  description:
+    $ref: description.md
+servers:
+  - url: https://<address>:{port}/1
+    variables:
+      port:
+        enum:
+          - '4242'
+        default: '4242'
+paths:
+  /rete_limits:
+    post:
+      tags:
+        - Rate Limiting
+      summary: Get rate limits
+      operationId: get_rate_limits
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RateLimit'
+                description: Rate limits for all endpoints.
+                example: 
+                  - path: "/device"
+                    method: "POST"
+                    limit: 60
+                    cooldown: 5
+                  - path: "/device"
+                    method: "DELETE"
+                    limit: 60
+                    cooldown: 5
+                  - path: "/info"
+                    method: "GET"
+                    limit: 30
+                    cooldown: 5
+                  - path: "/temperature"
+                    method: "POST"
+                    limit: 20
+                    cooldown: 5
+                  - path: "/temperature"
+                    method: "DELETE"
+                    limit: 20
+                    cooldown: 5
+                  - path: "/decantation"
+                    method: "POST"
+                    limit: 20
+                    cooldown: 5
+                  - path: "/decantation"
+                    method: "DELETE"
+                    limit: 20
+                    cooldown: 5
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+  /device:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new device in the decanter
+      description: Generate an access token used for device authentication.
+      operationId: register_device
+      requestBody:
+        description: Device credentials.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceInfo'
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceToken'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidSecretError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+    delete:
+      tags:
+        - Authentication
+      summary: Register a new device in the decanter
+      description: Delete a device, terminate its session and stop all ongoing processes.
+      operationId: delete_device
+      parameters:
+        - in: query
+          name: device_uuid
+          schema:
+            type: string
+          required: true
+          description: Device unique identifier.
+          example: d9b34e80-2bb6-11ed-a261-0242ac120002
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidUUIDError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+      security:
+        - bearerAuth: [bearer]
+  /info:
+    get:
+      tags:
+        - Info
+      summary: Get wine info
+      operationId: get_info
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessReportTemperature'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+      security:
+        - bearerAuth: [bearer]
+  /temperature:
+    post:
+      tags:
+        - Temperature
+      summary: Change the temperature of wine
+      description: Start increasing or decreasing the temperature of wine. This process is not instant (1–2 minutes per 1 °C). Each new request overwrites the target temperature.
+      operationId: set_temperature
+      requestBody:
+        description: Temperature change request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemperatureRequest'
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusReport'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MissingParameterError'
+                  - $ref: '#/components/schemas/InvalidParameterError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+      security:
+        - bearerAuth: [bearer]
+    delete:
+      tags:
+        - Temperature
+      summary: Cancel changing the temperature
+      description: Cancel an ongoing process of temperature change. Each request is non-idempotent, meaning that repeated requests have the same result regardless of their number. Cancelation stops callbacks coming.
+      operationId: cancel_temperature
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusReport'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'      
+  /decantation:
+    post:
+      tags:
+        - Decantation
+      summary: Decant wine
+      description: Start decanting wine. This process is not instant. Each new request cannot overwrite an ongoing one.
+      operationId: start_decantation
+      requestBody:
+        description: Decantation request.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecantationRequest'
+      callbacks:
+        decantationComplete:
+          '{$request.body#/callbackUrl}':
+            post:
+              description: Update sent after the decantation is complete.
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/StatusReport'
+              responses:
+                '200':
+                  description: OK
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusReport'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MissingParameterError'
+                  - $ref: '#/components/schemas/InvalidParameterError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForbiddenError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset. 
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+      security:
+        - bearerAuth: [bearer]
+    delete:
+      tags:
+        - Decantation
+      summary: Cancel decanting wine
+      operationId: cancel_decantation
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: integer
+                description: The number of requests remaining within the limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusReport'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MissingParameterError'
+                  - $ref: '#/components/schemas/InvalidParameterError'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+        '429':
+          description: Too Many Requests
+          headers:
+            X-Rate-Limit-Remaining:
+              schema:
+                type: string
+              description: Time before the request counter will be reset.
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalServerError'
+      security:
+        - bearerAuth: [bearer]
+components:
+  schemas:
+    RateLimit:
+      type: object
+      description: Maximum number of requests from a device per minute.
+      required:
+        - path
+        - method
+        - limit
+        - cooldown
+      properties:
+        path:
+          type: string
+          description: Endpoint path.
+          example: "/temperature"
+        method:
+          type: string
+          description: Endpoint method.
+          example: "POST"
+        limit:
+          type: integer
+          description: Rate limit.
+          example: 60
+        cooldown:
+          type: integer
+          description: Cooldown in minutes after the limit is exceeded.
+          example: 5
+    DeviceInfo:
+      type: object
+      description: Device access credentials.
+      required:
+        - secret
+      properties:
+        secret: 
+          type: string
+          description: Secret provided on a physical medium.
+          example: Eia0T26CJno5HkR1YHA7O5hdtroUbPCc
+    DeviceToken:
+      type: object
+      description: Access token place in the headers of later requests. 
+      required:
+        - decanter_uuid
+        - token
+      properties:
+        decanter_uuid:
+          type: string
+          description: Decanter unique identifier.
+          example: d9b34e80-2bb6-11ed-a261-0242ac120002
+        token:
+          type: string
+          description: Device access token.
+          example: JzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikpva
+    WineParameters:
+      type: object
+      description: Wine condition report.
+      required:
+        - volume
+        - alcohol
+        - sugar
+        - temperature
+        - type
+        - confidence
+      properties:
+        volume:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1.5
+          multipleOf: 0.01
+          example: 0.75
+          description: The volume of wine in the decanter expressed in liters.
+        alcohol:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          multipleOf: 0.001
+          example: 0.16
+          description: Alcohol content expressed in a decimal number (0.01 stands for 1%).
+        sugar:
+          type: integer
+          minimum: 0
+          maximum: 220
+          example: 45
+          description: Sugar content expressed in grams per liter (g/L).
+        temperature:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1.5
+          multipleOf: 0.01
+          example: 0.75
+        type:
+          type: string
+          description: The type of wine determined with a specific confidence level (refer to `confidence` parameter).
+          example: "red"
+          enum:
+            - "red"
+            - "pink"
+            - "orange"
+        confidence:
+          type: number
+          format: float32
+          minimum: 0
+          maximum: 0.99
+          example: 1
+          multipleOf: 0.01
+          description: Confidence level expressed in a decimal number (0.01 stands for 1%). For example, the confidence of 0.95 indicates 95% chance of an individual survey being correct.
+    TemperatureRequest:
+      required:
+        - temperature
+        - callbackUrl
+      type: object
+      description: Request for starting temperature change.    
+      properties:
+        temperature:
+          description: Desired temperature of wine.
+          type: number
+          format: float
+          minimum: 1
+          maximum: 25
+          multipleOf: 0.01
+          example: 12
+        callbackUrl:
+          description: Address for callbacks accessing the device.
+          type: string
+          example: com.example.app:redirect_uri_path
+        updateRate:
+          description: Temperature update period in seconds. `0` value stands for no updates emitted before the operation is complete.
+          type: integer
+          default: 0
+          example: 3
+    TemperatureUpdate:
+      required:
+        - temperature
+        - temperature_delta
+        - time_delta
+      type: object
+      properties:
+        temperature:
+          description: Current temperature.
+          type: number
+          format: float
+          minimum: 1
+          maximum: 25
+          multipleOf: 0.1
+          example: 12.2
+        temperature_delta:
+          description: Temperature delta.
+          type: number
+          format: float
+          minimum: 0
+          multipleOf: 0.1
+          example: 0.2
+        time_delta:
+          description: Time period between callbacks in milliseconds.
+          type: integer
+          example: 2030
+    SuccessReportTemperature:
+      required:
+        - temperature
+      type: object
+      description: The report on a successful start of changing the temperature.    
+      properties:
+        temperature: 
+          description: Temperature at the moment of request.
+          type: number
+          format: float
+          minimum: 1
+          maximum: 25
+          multipleOf: 0.01
+          example: 12
+    DecantationRequest:
+      required:
+        - callbackUrl
+      type: object
+      description: Request for starting decantation.
+      properties:      
+        callbackUrl:
+          description: Address for callbacks accessing the device.
+          type: string
+          example: com.example.app:redirect_uri_path
+    StatusReport:
+      required:
+        - status
+      type: object
+      description: The report on a successful starting or stopping a process.    
+      properties:
+        status:
+          type: string
+          enum:
+            - "started"
+            - "stopped"
+          description: Process status.
+          example: "started"
+    Error:
+      required:
+        - code
+        - message
+      type: object
+      description: Error report.
+      properties:
+        code:
+          type: integer
+          description: Error code.
+        message:
+          type: string
+          description: Custom error message.
+    InvalidSecretError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 400
+        message: The secret provider is invalid.
+    InvalidParameterError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 400
+        message: The parameter(s) value(s) violates the allowed range.
+    MissingParameterError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 400
+        message: A required parameter is missing.
+    InvalidUUIDError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 400
+        message: The UUID provided is unknown.
+    UnauthorizedError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 401
+        message: The access token provided is invalid.
+    ForbiddenError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 403
+        message: There is an ongoing process of decantation.  
+    NotFoundError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 404
+        message: There is no ongoing process to cancel.
+    InternalServerError:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/Error'
+      example:
+        code: 500
+        message: Cannot connect to the decanter.
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer

@@ -681,7 +681,7 @@ components:
         - $ref: '#/components/schemas/Error'
       example:
         code: 500
-        message: Cannot connect to the deconder.
+        message: Cannot connect to the decanter.
   securitySchemes:
     bearerAuth:
       type: http
